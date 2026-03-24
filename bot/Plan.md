@@ -1,9 +1,40 @@
-Create a bot that works in Telegram and in test mode on a computer without an Internet connection. The test mode is needed to check commands and responses without connecting to Telegram. Main file: bot.py — entry point. Runs the bot in normal mode and in test mode (--test).
+# SE Toolkit Bot Development Plan
 
-Command handlers: The handlers/ folder stores all commands. Each command (/start, /help, /health, etc.) has a separate function. The functions receive input data and return a response, regardless of Telegram. At first, the teams use stubs, and later they connect to real services.
+## Overview
 
-Services and APIs: The services/ folder stores clients of external systems (for example, LMS and LLM). It makes it easy to expand functionality and add new integrations.
+This document outlines the development plan for the SE Toolkit Telegram Bot, which provides students with access to lab information, scores, and AI-powered assistance through a conversational interface.
 
-Settings and Dependencies: Settings are stored in .env.bot.secret and read via config.py . Dependencies are managed via pyproject.toml to make the project easy to run and update.
+## Phase 1: Scaffold (Current Task)
 
-Advantages of the structure: It is easy to test commands without Telegram. Easy addition of new handlers and services. It is convenient to integrate with CI/CD systems for automatic assembly and deployment.
+- Create project structure with separation of concerns
+- Implement testable handler architecture (handlers don't depend on Telegram)
+- Add `--test` mode for offline verification without Telegram connection
+- Set up dependency management with `pyproject.toml` and `uv`
+
+## Phase 2: Backend Integration
+
+- Implement LMS API client in `services/lms_client.py`
+- Connect `/health`, `/labs`, `/scores` handlers to real backend
+- Add error handling and retry logic for API calls
+- Implement caching for frequently accessed data
+
+## Phase 3: Intent Routing
+
+- Add LLM client for natural language understanding
+- Implement intent classification (command vs. question)
+- Route messages to appropriate handlers based on intent
+- Add context management for multi-turn conversations
+
+## Phase 4: Deployment
+
+- Create Docker configuration for bot service
+- Set up health checks and monitoring
+- Configure logging and error reporting
+- Implement graceful shutdown and restart policies
+
+## Architecture Principles
+
+1. **Testability**: All handlers work without Telegram
+2. **Separation**: Transport layer (Telegram) separate from business logic
+3. **Configuration**: Environment-based configuration for different environments
+4. **Error Handling**: Graceful degradation when services are unavailable
