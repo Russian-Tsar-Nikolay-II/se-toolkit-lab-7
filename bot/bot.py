@@ -1,5 +1,5 @@
 import argparse
-from handlers import start, help_cmd, health
+from handlers import start_handler, help_handler, health_handler
 
 def main():
     parser = argparse.ArgumentParser()
@@ -9,17 +9,14 @@ def main():
     if args.test:
         cmd = args.test.lower()
         if cmd == "/start":
-            print(start.handle())
+            print(start_handler())
         elif cmd == "/help":
-            print(help_cmd.handle())
+            print(help_handler())
         elif cmd == "/health":
-            print(health.handle())
+            print(health_handler())
         else:
             print(f"Command '{args.test}' not implemented yet")
         exit(0)
-
-    # Placeholder: Telegram startup (future)
-    print("Telegram mode not implemented yet")
 
 if __name__ == "__main__":
     main()

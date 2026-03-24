@@ -2,7 +2,6 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Load .env.bot.secret if exists
 env_path = Path(__file__).parent / ".env.bot.secret"
 if env_path.exists():
     load_dotenv(dotenv_path=env_path)
