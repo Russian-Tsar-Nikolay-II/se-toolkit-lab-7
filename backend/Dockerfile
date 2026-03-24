@@ -1,4 +1,4 @@
-# Adapted from https://github.com/astral-sh/uv-docker-example/blob/fa761744819c05f4ce207bde1f0a396f6be3915f/multistage.Dockerfile
+# Adapted from https://github.com/astral-sh/uv-docker-example/blob/fa761744819c05f4ce207bde1f0a396f6be3915f/multistage.>
 # Also see https://docs.astral.sh/uv/guides/integration/docker/
 
 # ---
@@ -23,9 +23,11 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     --mount=type=bind,source=backend/pyproject.toml,target=backend/pyproject.toml \
+    --mount=type=bind,source=bot/pyproject.toml,target=bot/pyproject.toml \
     uv sync --locked --no-install-project
 
 COPY backend /app/backend
+COPY bot /app/bot
 COPY pyproject.toml uv.lock /app/
 
 RUN --mount=type=cache,target=/root/.cache/uv \
@@ -37,31 +39,18 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 ARG REGISTRY_PREFIX=harbor.pg.innopolis.university/docker-hub-cache/
 FROM ${REGISTRY_PREFIX}python:3.14.2-slim-bookworm
-# It is important to use the image that matches the builder, as the path to the
-# Python executable must be the same, e.g., using `python:3.11-slim-bookworm`
-# will fail.
 
-# # Set environment variables for Python and application
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-# # Make sure we use UTF-8 encoding
 ENV LANG=C.UTF-8
-
-# Setup a non-root user
 RUN groupadd --system --gid 999 nonroot \
     && useradd --system --gid 999 --uid 999 --create-home nonroot
 
-# Copy the application from the builder
 COPY --from=builder --chown=nonroot:nonroot /app /app
 
-# Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"
 
-# Use the non-root user to run our application
 USER nonroot
-
-# Use `/app` as the working directory
 WORKDIR /app
 
-# Run the FastAPI application
 CMD ["sh", "-c", "python backend/app/run.py"]
