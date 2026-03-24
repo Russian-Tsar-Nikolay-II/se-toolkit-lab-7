@@ -2,6 +2,7 @@
 
 ## Overview
 
+
 This document outlines the development plan for the SE Toolkit Telegram Bot, which provides students with access to lab information, scores, and AI-powered assistance through a conversational interface.
 
 ## Phase 1: Scaffold (Current Task)
