@@ -1,2 +1,3 @@
 nohup: ignoring input
-LMS Bot running. Use --test <command> to test.
+Received SIGTERM signal
+Received SIGTERM signal

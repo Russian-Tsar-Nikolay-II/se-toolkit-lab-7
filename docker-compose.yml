@@ -89,6 +89,26 @@ services:
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile
 
+
+  bot:
+    build:
+      context: .
+      dockerfile: bot/Dockerfile
+    depends_on:
+      - backend
+    environment:
+      LMS_API_BASE_URL: http://backend:8000
+      LMS_API_KEY: ${LMS_API_KEY}
+      BOT_TOKEN: ${BOT_TOKEN}
+      LLM_API_KEY: ${LLM_API_KEY}
+      LLM_API_BASE_URL: http://host.docker.internal:42005/v1
+      LLM_API_MODEL: ${LLM_API_MODEL}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - lms-network
+    restart: unless-stopped
+
 volumes:
   postgres_data:
 
