@@ -1,22 +1,38 @@
-import argparse
-from handlers import start_handler, help_handler, health_handler
+import sys
+from handlers import commands
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--test", type=str, help="Run command in test mode")
-    args = parser.parse_args()
+COMMANDS = {
+    "/start": commands.start_handler,
+    "/help": commands.help_handler,
+    "/health": commands.health_handler,
+    "/labs": commands.labs_handler,
+    "/scores": commands.scores_handler,
+}
 
-    if args.test:
-        cmd = args.test.lower()
-        if cmd == "/start":
-            print(start_handler())
-        elif cmd == "/help":
-            print(help_handler())
-        elif cmd == "/health":
-            print(health_handler())
-        else:
-            print(f"Command '{args.test}' not implemented yet")
-        exit(0)
+
+def run_test_mode():
+    if len(sys.argv) < 3:
+        print('Usage: uv run bot.py --test "/command [arg]"')
+        sys.exit(1)
+
+    cmd = sys.argv[2]
+    parts = cmd.strip().split(maxsplit=1)
+
+    command = parts[0]
+    arg = parts[1] if len(parts) > 1 else None
+
+    handler = COMMANDS.get(command)
+
+    if not handler:
+        print(f"Unknown command '{command}'. Try /help")
+        return
+
+    if command == "/scores":
+        print(handler(arg))
+    else:
+        print(handler())
+
 
 if __name__ == "__main__":
-    main()
+    if "--test" in sys.argv:
+        run_test_mode()
