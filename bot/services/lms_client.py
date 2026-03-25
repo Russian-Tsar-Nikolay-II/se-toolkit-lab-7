@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlparse
 
 import httpx
@@ -85,20 +86,53 @@ class LMSClient:
 
         return str(exc)
 
-    def _get(self, path: str, params: dict[str, str] | None = None) -> list[dict] | dict[str, str]:
+    def _request(
+        self,
+        method: str,
+        path: str,
+        params: dict[str, Any] | None = None,
+        json_body: dict[str, Any] | None = None,
+    ) -> Any:
         try:
-            with httpx.Client(base_url=self.base_url, timeout=5.0, follow_redirects=True) as client:
-                response = client.get(path, params=params, headers=self._headers())
+            with httpx.Client(timeout=10.0, follow_redirects=True) as client:
+                response = client.request(
+                    method=method,
+                    url=f"{self.base_url}{path}",
+                    params=params,
+                    json=json_body,
+                    headers=self._headers(),
+                )
                 response.raise_for_status()
-                data = response.json()
-                if isinstance(data, list):
-                    return data
-                return {"error": f"unexpected backend response type: {type(data).__name__}"}
+                return response.json()
         except Exception as exc:
             return {"error": self._error_message(exc)}
 
-    def get_items(self) -> list[dict] | dict[str, str]:
-        return self._get("/items/")
+    def get_items(self) -> Any:
+        return self._request("GET", "/items/")
 
-    def get_pass_rates(self, lab_slug: str) -> list[dict] | dict[str, str]:
-        return self._get("/analytics/pass-rates", params={"lab": lab_slug})
+    def get_learners(self) -> Any:
+        return self._request("GET", "/learners/")
+
+    def get_scores(self, lab: str) -> Any:
+        return self._request("GET", "/analytics/scores", params={"lab": lab})
+
+    def get_pass_rates(self, lab: str) -> Any:
+        return self._request("GET", "/analytics/pass-rates", params={"lab": lab})
+
+    def get_timeline(self, lab: str) -> Any:
+        return self._request("GET", "/analytics/timeline", params={"lab": lab})
+
+    def get_groups(self, lab: str) -> Any:
+        return self._request("GET", "/analytics/groups", params={"lab": lab})
+
+    def get_top_learners(self, lab: str | None = None, limit: int = 5) -> Any:
+        params: dict[str, Any] = {"limit": limit}
+        if lab:
+            params["lab"] = lab
+        return self._request("GET", "/analytics/top-learners", params=params)
+
+    def get_completion_rate(self, lab: str) -> Any:
+        return self._request("GET", "/analytics/completion-rate", params={"lab": lab})
+
+    def trigger_sync(self) -> Any:
+        return self._request("POST", "/pipeline/sync", json_body={})
