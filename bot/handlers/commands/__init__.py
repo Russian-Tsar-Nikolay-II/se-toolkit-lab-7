@@ -1,6 +1,5 @@
-from .start import handle_start
-from .help import handle_help
-from .health import handle_health
-from .labs import handle_labs
-from .scores import handle_scores
-__all__=["handle_start","handle_help","handle_health","handle_labs","handle_scores"]
+from .start import start_handler
+from .help import help_handler
+from .health import health_handler
+from .labs import labs_handler
+from .scores import scores_handler

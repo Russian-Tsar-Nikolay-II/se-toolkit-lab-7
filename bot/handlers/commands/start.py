@@ -1,2 +1,2 @@
-async def handle_start(args=None):
-    return "Welcome to LMS Bot. Use /help to see available commands."
+def start_handler():
+    return "Welcome to SE Toolkit Bot! Use /help to see available commands."
