@@ -4,5 +4,5 @@ def help_handler():
         "/help — List commands\n"
         "/health — Backend status\n"
         "/labs — List available labs\n"
-        "/scores <lab> — Per-task pass rates (e.g. lab-04)"
+        "/scores <lab> — Per-task pass rates"
     )
