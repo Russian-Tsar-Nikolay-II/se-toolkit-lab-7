@@ -14,6 +14,8 @@ COMMANDS = {
 
 
 
+
+
 def run_test_mode():
     if len(sys.argv) < 3:
         print('Usage: uv run bot.py --test "/command [arg]"')
