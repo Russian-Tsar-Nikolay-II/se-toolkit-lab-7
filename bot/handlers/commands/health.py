@@ -10,8 +10,8 @@ async def handle_health(args=None):
             resp = await client.get(url, headers=headers, timeout=10.0)
             resp.raise_for_status()
             data = resp.json()
-            count = len(data) if isinstance(data, list) else "unknown"
-            return f"Backend is healthy. {count} items available."
+            count = len(data) if isinstance(data, list) else 0
+            return f"Health check OK: {count} items"
     except httpx.ConnectError:
         return "Backend error: connection refused (localhost:42002). Check that the services are running."
     except httpx.HTTPStatusError as e:
