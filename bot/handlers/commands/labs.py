@@ -15,6 +15,6 @@ def labs_handler():
     for lab in labs:
         lab_id = lab.get("id", "")
         title = lab.get("title", "Unnamed Lab")
-        output += f"- Lab {str(lab_id)[-2:]} - {title}\n"
+        output += f"- Lab {lab_id} — {title}\n"
 
     return output.strip()

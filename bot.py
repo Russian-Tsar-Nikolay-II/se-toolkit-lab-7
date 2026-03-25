@@ -16,7 +16,6 @@ def run_test_mode():
 
     cmd = sys.argv[2]
     parts = cmd.strip().split(maxsplit=1)
-
     command = parts[0]
     arg = parts[1] if len(parts) > 1 else None
 
