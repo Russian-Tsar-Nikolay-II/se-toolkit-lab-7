@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import re
 import sys
 from typing import Any, Callable
 
@@ -87,48 +86,95 @@ def error_or_none(response: Any) -> str | None:
     return None
 
 
+def first_number(text: str) -> int | None:
+    digits = ""
+    started = False
+
+    for char in text:
+        if char.isdigit():
+            digits += char
+            started = True
+        elif started:
+            break
+
+    if not digits:
+        return None
+    return int(digits)
+
+
 def normalize_lab_slug(raw: str) -> str:
-    value = raw.strip().lower()
-    match = re.search(r"(\d+)", value)
-    if match:
-        return f"lab-{int(match.group(1)):02d}"
-    return value.replace(" ", "")
+    number = first_number(raw.strip())
+    if number is not None:
+        return f"lab-{number:02d}"
+    return raw.strip().lower().replace(" ", "")
 
 
 def lab_label_from_text(raw: str) -> str:
-    match = re.search(r"(\d+)", raw)
-    if match:
-        return f"Lab {int(match.group(1)):02d}"
+    number = first_number(raw)
+    if number is not None:
+        return f"Lab {number:02d}"
     return raw.strip()
 
 
+def collapse_spaces(text: str) -> str:
+    return " ".join(str(text or "").split())
+
+
+def parse_lab_prefix(text: str) -> tuple[int | None, str]:
+    clean = collapse_spaces(text)
+    lowered = clean.lower()
+
+    if not lowered.startswith("lab"):
+        return None, clean
+
+    rest = clean[3:].lstrip()
+    digits = ""
+    index = 0
+
+    while index < len(rest) and rest[index].isdigit():
+        digits += rest[index]
+        index += 1
+
+    if not digits:
+        return None, clean
+
+    tail = rest[index:].lstrip(" -—–:\t")
+    return int(digits), tail
+
+
 def split_lab_title(title: str, slug: str, fallback_id: object) -> tuple[int, str, str]:
-    clean_title = " ".join(str(title or "").split())
+    clean_title = collapse_spaces(title)
     clean_slug = str(slug or "").strip().lower()
 
-    title_match = re.match(r"(?i)^lab\s*0*(\d+)\s*[-—–:]\s*(.+)$", clean_title)
-    if title_match:
-        number = int(title_match.group(1))
-        return number, f"Lab {number:02d}", title_match.group(2).strip()
+    parsed_number, parsed_desc = parse_lab_prefix(clean_title)
+    if parsed_number is not None:
+        description = parsed_desc if parsed_desc else clean_title
+        return parsed_number, f"Lab {parsed_number:02d}", description
 
-    generic_match = re.match(r"(?i)^lab\s*0*(\d+)\b", clean_title)
-    if generic_match:
-        number = int(generic_match.group(1))
-        desc = re.sub(r"(?i)^lab\s*0*\d+\s*[-—–:]?\s*", "", clean_title).strip()
-        if not desc:
-            desc = clean_title
-        return number, f"Lab {number:02d}", desc
-
-    slug_match = re.search(r"lab[-_\s]*0*(\d+)", clean_slug)
-    if slug_match:
-        number = int(slug_match.group(1))
-        desc = clean_title or f"Lab {number:02d}"
-        return number, f"Lab {number:02d}", desc
+    if clean_slug.startswith("lab"):
+        slug_number = first_number(clean_slug)
+        if slug_number is not None:
+            description = clean_title or f"Lab {slug_number:02d}"
+            return slug_number, f"Lab {slug_number:02d}", description
 
     if isinstance(fallback_id, int):
-        return fallback_id, f"Lab {fallback_id:02d}", clean_title or f"Lab {fallback_id:02d}"
+        description = clean_title or f"Lab {fallback_id:02d}"
+        return fallback_id, f"Lab {fallback_id:02d}", description
 
-    return 999, clean_title or "Lab", clean_title or "Unnamed lab"
+    description = clean_title or "Unnamed lab"
+    return 999, description, description
+
+
+def looks_like_lab(item_type: str, title: str, slug: str) -> bool:
+    if item_type == "lab":
+        return True
+
+    title_number, _ = parse_lab_prefix(title)
+    if title_number is not None:
+        return True
+
+    clean_slug = str(slug or "").strip().lower()
+    return clean_slug.startswith("lab") and first_number(clean_slug) is not None
 
 
 def health_text() -> str:
@@ -156,12 +202,7 @@ def labs_text() -> str:
         slug = str(item.get("slug") or item.get("code") or item.get("lab") or "").strip()
         item_id = item.get("id")
 
-        looks_like_lab = (
-            item_type == "lab"
-            or bool(re.match(r"(?i)^lab\s*0*\d+\b", title))
-            or bool(re.match(r"(?i)^lab-\d+$", slug))
-        )
-        if not looks_like_lab:
+        if not looks_like_lab(item_type, title, slug):
             continue
 
         number, label, desc = split_lab_title(title, slug, item_id)
