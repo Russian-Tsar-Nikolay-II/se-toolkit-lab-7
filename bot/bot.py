@@ -1,26 +1,36 @@
 from __future__ import annotations
 
 import asyncio
-import os
 import re
 import sys
-from typing import Callable
+from typing import Any, Callable
 
-from aiogram import Bot, Dispatcher
+from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command, CommandStart
 from aiogram.filters.command import CommandObject
-from aiogram.types import BotCommand, Message
+from aiogram.types import (
+    BotCommand,
+    CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+)
 
+from services.llm_router import LLMRouter
 from services.lms_client import LMSClient, load_env
 
 load_env()
+
 client = LMSClient()
+router = LLMRouter(client=client)
 
 
 def start_text() -> str:
     return (
         "Welcome to SE Toolkit Bot!\n"
-        "Use /help to see available commands."
+        "You can use slash commands or just ask in plain English.\n"
+        "Examples: 'what labs are available?', 'show me scores for lab 4', "
+        "'which lab has the lowest pass rate?'"
     )
 
 
@@ -31,11 +41,47 @@ def help_text() -> str:
         "/help — list all commands\n"
         "/health — check backend status\n"
         "/labs — list available labs\n"
-        "/scores <lab> — show per-task pass rates, for example /scores lab-04"
+        "/scores <lab> — show per-task pass rates, for example /scores lab-04\n\n"
+        "You can also ask plain-text questions like:\n"
+        "- what labs are available?\n"
+        "- show me scores for lab 4\n"
+        "- which lab has the lowest pass rate?\n"
+        "- who are the top 5 students in lab 4?"
     )
 
 
-def error_or_none(response: list[dict] | dict[str, str]) -> str | None:
+def start_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="What labs are available?",
+                    callback_data="ask:what labs are available?",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="Show scores for Lab 04",
+                    callback_data="ask:show me scores for lab 4",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="Lowest pass rate",
+                    callback_data="ask:which lab has the lowest pass rate?",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="Top 5 students in Lab 04",
+                    callback_data="ask:who are the top 5 students in lab 4?",
+                )
+            ],
+        ]
+    )
+
+
+def error_or_none(response: Any) -> str | None:
     if isinstance(response, dict) and "error" in response:
         return f"Backend error: {response['error']}"
     return None
@@ -129,15 +175,13 @@ def labs_text() -> str:
         return "No labs found."
 
     rows.sort(key=lambda row: row[0])
-
     lines = ["Available labs:"]
     for _, label, desc in rows:
         lines.append(f"- {label} — {desc}")
-
     return "\n".join(lines)
 
 
-def extract_task_name(task: dict) -> str:
+def extract_task_name(task: dict[str, Any]) -> str:
     for key in ("task", "name", "title", "task_name", "item_title", "label"):
         value = task.get(key)
         if isinstance(value, str) and value.strip():
@@ -145,7 +189,7 @@ def extract_task_name(task: dict) -> str:
     return "Unknown task"
 
 
-def extract_attempts(task: dict) -> int:
+def extract_attempts(task: dict[str, Any]) -> int:
     for key in ("attempts", "submission_count", "count", "num_attempts", "submissions"):
         value = task.get(key)
         if value is None:
@@ -157,7 +201,7 @@ def extract_attempts(task: dict) -> int:
     return 0
 
 
-def extract_rate(task: dict) -> float:
+def extract_rate(task: dict[str, Any]) -> float:
     for key in ("pass_rate", "avg_score", "rate", "percentage", "avg"):
         value = task.get(key)
         if value is None:
@@ -200,7 +244,6 @@ def scores_text(arg: str | None) -> str:
         rate = format_percent(extract_rate(task))
         attempts = extract_attempts(task)
         lines.append(f"- {name}: {rate} ({attempts} attempts)")
-
     return "\n".join(lines)
 
 
@@ -217,25 +260,34 @@ TEST_COMMANDS: dict[str, Callable[..., str]] = {
 }
 
 
+def route_test_or_text(raw: str) -> str:
+    text = raw.strip()
+    if not text:
+        return help_text()
+
+    if text.startswith("/"):
+        parts = text.split(maxsplit=1)
+        command = parts[0]
+        arg = parts[1] if len(parts) > 1 else None
+
+        handler = TEST_COMMANDS.get(command)
+        if handler is None:
+            return unknown_command_text(command)
+
+        if command == "/scores":
+            return handler(arg)
+        return handler()
+
+    return router.route(text)
+
+
 def run_test_mode() -> None:
     if len(sys.argv) < 3:
         print('Usage: uv run bot.py --test "/command [arg]"')
         raise SystemExit(1)
 
-    raw = sys.argv[2].strip()
-    parts = raw.split(maxsplit=1)
-    command = parts[0]
-    arg = parts[1] if len(parts) > 1 else None
-
-    handler = TEST_COMMANDS.get(command)
-    if handler is None:
-        print(unknown_command_text(command))
-        return
-
-    if command == "/scores":
-        print(handler(arg))
-    else:
-        print(handler())
+    raw = sys.argv[2]
+    print(route_test_or_text(raw))
 
 
 async def set_bot_commands(bot: Bot) -> None:
@@ -251,7 +303,9 @@ async def set_bot_commands(bot: Bot) -> None:
 
 
 async def run_telegram_mode() -> None:
-    token = os.getenv("BOT_TOKEN", "").strip()
+    from os import getenv
+
+    token = getenv("BOT_TOKEN", "").strip()
     if not token:
         raise SystemExit("BOT_TOKEN is not set. Configure it or run with --test.")
 
@@ -259,11 +313,11 @@ async def run_telegram_mode() -> None:
 
     @dp.message(CommandStart())
     async def handle_start(message: Message) -> None:
-        await message.answer(start_text())
+        await message.answer(start_text(), reply_markup=start_keyboard())
 
     @dp.message(Command("help"))
     async def handle_help(message: Message) -> None:
-        await message.answer(help_text())
+        await message.answer(help_text(), reply_markup=start_keyboard())
 
     @dp.message(Command("health"))
     async def handle_health(message: Message) -> None:
@@ -276,6 +330,26 @@ async def run_telegram_mode() -> None:
     @dp.message(Command("scores"))
     async def handle_scores(message: Message, command: CommandObject) -> None:
         await message.answer(scores_text(command.args))
+
+    @dp.callback_query(F.data.startswith("ask:"))
+    async def handle_inline_question(callback: CallbackQuery) -> None:
+        raw = callback.data[len("ask:") :] if callback.data else ""
+        answer = await asyncio.to_thread(router.route, raw)
+        if callback.message:
+            await callback.message.answer(answer)
+        await callback.answer()
+
+    @dp.message(F.text.startswith("/"))
+    async def handle_unknown_command(message: Message) -> None:
+        assert message.text is not None
+        command = message.text.strip().split(maxsplit=1)[0]
+        await message.answer(unknown_command_text(command))
+
+    @dp.message(F.text)
+    async def handle_plain_text(message: Message) -> None:
+        assert message.text is not None
+        answer = await asyncio.to_thread(router.route, message.text)
+        await message.answer(answer)
 
     bot = Bot(token=token)
     await set_bot_commands(bot)
