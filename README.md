@@ -95,3 +95,44 @@ By the end of this lab, you should be able to say:
 ### Optional
 
 1. [Flutter Web Chatbot](./lab/tasks/optional/task-1.md)
+
+## Deploy
+
+This project can be deployed with Docker Compose so the bot runs alongside the backend as a managed container.
+
+### Required environment variables
+
+Set these in `.env.docker.secret`:
+
+- `BOT_TOKEN`
+- `LMS_API_KEY`
+- `LLM_API_KEY`
+- `LLM_API_MODEL`
+
+For the bot container:
+- `LMS_API_BASE_URL` must be `http://backend:8000`
+- `LLM_API_BASE_URL` should be `http://host.docker.internal:42005/v1`
+
+### Build and start
+
+```bash
+cd ~/se-toolkit-lab-7
+pkill -f "bot.py" 2>/dev/null || true
+docker compose --env-file .env.docker.secret up --build -d
+docker compose --env-file .env.docker.secret ps
+```
+
+### Verify
+
+```bash
+curl -sf http://localhost:42002/docs >/dev/null && echo OK
+docker compose --env-file .env.docker.secret ps bot
+docker compose --env-file .env.docker.secret logs bot --tail 20
+```
+
+In Telegram, verify:
+
+- `/start`
+- `/health`
+- `what labs are available?`
+- `which lab has the lowest pass rate?`
