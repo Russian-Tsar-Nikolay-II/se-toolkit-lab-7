@@ -10,19 +10,14 @@ async def handle_labs(args=None):
             resp = await client.get(url, headers=headers, timeout=10.0)
             resp.raise_for_status()
             data = resp.json()
-            labs = []
-            for item in data:
-                item_type = item.get("type", "")
-                item_id = str(item.get("id", ""))
-                if item_type == "lab" or "lab" in item_id.lower():
-                    labs.append(item)
+            labs = [item for item in data if item.get("type") == "lab"]
             if not labs:
-                labs = data
+                labs = [item for item in data if "lab" in str(item.get("id", "")).lower()]
             lines = ["Available labs:"]
             for lab in labs:
-                lab_id = lab.get("id", "unknown")
                 title = lab.get("title", lab.get("name", "Untitled"))
-                lines.append(f"- Lab {lab_id} — {title}")
+                # Формат: "- Lab 01 — Products, Architecture & Roles"
+                lines.append(f"- {title}")
             return "\n".join(lines)
     except httpx.ConnectError:
         return "Backend error: connection refused (localhost:42002). Check that the services are running."

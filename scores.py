@@ -12,7 +12,7 @@ async def handle_scores(args=None):
         async with httpx.AsyncClient() as client:
             resp = await client.get(url, headers=headers, timeout=10.0)
             if resp.status_code == 404:
-                return f"Lab not found. Use /labs to see available labs."
+                return "Lab not found. Use /labs to see available labs."
             resp.raise_for_status()
             data = resp.json()
             if isinstance(data, dict) and "pass_rates" in data:
@@ -20,17 +20,15 @@ async def handle_scores(args=None):
             elif isinstance(data, list):
                 rates = data
             else:
-                return f"Lab not found. Use /labs to see available labs."
+                return "Lab not found. Use /labs to see available labs."
             if not rates:
-                return f"Lab not found. Use /labs to see available labs."
-            # Формат заголовка: "Pass rates for Lab 04:"
+                return "Lab not found. Use /labs to see available labs."
             lab_num = lab_id.replace("lab-", "").replace("lab", "")
             lines = [f"Pass rates for Lab {lab_num}:"]
             for item in rates:
                 task = item.get("task", item.get("name", "Unknown task"))
                 rate = item.get("rate", item.get("pass_rate", 0))
                 attempts = item.get("attempts", 0)
-                # Формат: "- Task Name: 92.1% (187 attempts)"
                 lines.append(f"- {task}: {rate:.1f}% ({attempts} attempts)")
             return "\n".join(lines)
     except httpx.ConnectError:
